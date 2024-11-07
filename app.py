@@ -3,7 +3,7 @@ import os
 from flask import Flask
 from gcp_microservice_utils import GcpAuthToken, setup_apigateway, setup_cloud_logging, setup_cloud_trace
 
-from blueprints import BlueprintBackup, BlueprintHealth, BlueprintReset, BlueprintInvoice
+from blueprints import BlueprintBackup, BlueprintHealth, BlueprintInvoice, BlueprintReset
 from containers import Container
 
 
