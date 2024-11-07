@@ -3,7 +3,7 @@ import os
 from flask import Flask
 from gcp_microservice_utils import GcpAuthToken, setup_apigateway, setup_cloud_logging, setup_cloud_trace
 
-from blueprints import BlueprintBackup, BlueprintHealth, BlueprintReset
+from blueprints import BlueprintBackup, BlueprintHealth, BlueprintReset, BlueprintInvoice
 from containers import Container
 
 
@@ -40,5 +40,6 @@ def create_app() -> FlaskMicroservice:
     app.register_blueprint(BlueprintBackup)
     app.register_blueprint(BlueprintHealth)
     app.register_blueprint(BlueprintReset)
+    app.register_blueprint(BlueprintInvoice)
 
     return app
