@@ -32,6 +32,12 @@ def create_app() -> FlaskMicroservice:
         if 'USE_CLOUD_TOKEN_PROVIDER' in os.environ:
             app.container.config.svc.client.token_provider.from_value(GcpAuthToken(os.environ['CLIENT_SVC_URL']))
 
+    if 'INCIDENTQUERY_SVC_URL' in os.environ:  # pragma: no cover
+        app.container.config.svc.incidentquery.url.from_env('INCIDENTQUERY_SVC_URL')
+
+        if 'USE_CLOUD_TOKEN_PROVIDER' in os.environ:
+            app.container.config.svc.incidentquery.token_provider.from_value(GcpAuthToken(os.environ['INCIDENTQUERY_SVC_URL']))
+
     if os.getenv('ENABLE_CLOUD_TRACE') == '1':  # pragma: no cover
         setup_cloud_trace(app)
 
