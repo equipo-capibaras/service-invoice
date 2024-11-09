@@ -1,4 +1,4 @@
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -7,11 +7,13 @@ from flask import Blueprint, Response
 from flask.views import MethodView
 
 from containers import Container
-from repositories import RateRepository, InvoiceRepository, IncidentRepository, ClientRepository
-from .util import class_route, json_response, requires_token, error_response
-from models import Role, Month, Invoice, Incident, Rate, Client, PlanCost, Channel
+from models import Channel, Client, Incident, Invoice, Month, PlanCost, Rate, Role
+from repositories import ClientRepository, IncidentRepository, InvoiceRepository, RateRepository
+
+from .util import class_route, error_response, json_response, requires_token
 
 blp = Blueprint('Invoice', __name__)
+
 
 def get_billing_period() -> tuple[Month, int]:
     now = datetime.now(UTC)
@@ -19,9 +21,15 @@ def get_billing_period() -> tuple[Month, int]:
     billing_year = now.year if now.month > 1 else now.year - 1
     return billing_month, billing_year
 
-def create_invoice(billing_month: Month, billing_year: int, client_id: str,
-                   rate: Rate ,incident_repo: IncidentRepository, invoice_repo: InvoiceRepository) -> Invoice:
-    incidents = get_incidents_by_client_and_month(client_id, billing_month, billing_year, incident_repo)
+
+def create_invoice(
+    month_year: tuple[Month, int],
+    client_id: str,
+    rate: Rate,
+    incident_repo: IncidentRepository,
+    invoice_repo: InvoiceRepository,
+) -> Invoice:
+    incidents = get_incidents_by_client_and_month(client_id, month_year[0], month_year[1], incident_repo)
     total_web = sum(1 for incident in incidents if incident.channel == Channel.WEB.value)
     total_mobile = sum(1 for incident in incidents if incident.channel == Channel.MOBILE.value)
     total_email = sum(1 for incident in incidents if incident.channel == Channel.EMAIL.value)
@@ -31,9 +39,9 @@ def create_invoice(billing_month: Month, billing_year: int, client_id: str,
         client_id=client_id,
         rate_id=rate.id,
         generation_date=datetime.now(UTC),
-        billing_month=billing_month,
-        billing_year=billing_year,
-        payment_due_date=datetime(billing_year, billing_month.value, 27, tzinfo=UTC),
+        billing_month=month_year[0],
+        billing_year=month_year[1],
+        payment_due_date=datetime(month_year[1], month_year[0].value, 27, tzinfo=UTC),
         total_incidents_web=total_web,
         total_incidents_mobile=total_mobile,
         total_incidents_email=total_email,
@@ -43,8 +51,10 @@ def create_invoice(billing_month: Month, billing_year: int, client_id: str,
 
     return invoice
 
-def get_incidents_by_client_and_month(client_id: str, month: Month,
-                                      year: int, incident_repo: IncidentRepository) -> list[Incident]:
+
+def get_incidents_by_client_and_month(
+    client_id: str, month: Month, year: int, incident_repo: IncidentRepository
+) -> list[Incident]:
     incidents = incident_repo.get_incidents_by_client_id(client_id=client_id)
     filtered_incidents = []
     for incident in incidents:
@@ -52,6 +62,7 @@ def get_incidents_by_client_and_month(client_id: str, month: Month,
         if created_date.month == month and created_date.year == year:
             filtered_incidents.append(incident)
     return filtered_incidents
+
 
 def create_rate(client: Client, rate_repo: RateRepository) -> Rate:
     plan_cost = PlanCost.get_costs(client.plan)
@@ -68,33 +79,40 @@ def create_rate(client: Client, rate_repo: RateRepository) -> Rate:
     rate_repo.create(rate)
     return rate
 
+
 def invoice_result_to_dict(invoice: Invoice, rate: Rate, client: Client) -> dict[str, Any]:
-    total_cost = rate.fixed_cost + (rate.cost_per_incident_web * invoice.total_incidents_web) + (rate.cost_per_incident_mobile * invoice.total_incidents_mobile) + (rate.cost_per_incident_email * invoice.total_incidents_email)
+    total_cost = (
+        rate.fixed_cost
+        + (rate.cost_per_incident_web * invoice.total_incidents_web)
+        + (rate.cost_per_incident_mobile * invoice.total_incidents_mobile)
+        + (rate.cost_per_incident_email * invoice.total_incidents_email)
+    )
     return {
-        "billing_month": invoice.billing_month.value,
-        "billing_year": invoice.billing_year,
-        "client_id": invoice.client_id,
-        "client_name": client.name,
-        "due_date": invoice.payment_due_date.isoformat(),
-        "client_plan": rate.plan,
-        "total_cost": total_cost,
-        "fixed_cost": rate.fixed_cost,
-        "total_incidents": {
-            "web": invoice.total_incidents_web,
-            "mobile": invoice.total_incidents_mobile,
-            "email": invoice.total_incidents_email,
+        'billing_month': invoice.billing_month.value,
+        'billing_year': invoice.billing_year,
+        'client_id': invoice.client_id,
+        'client_name': client.name,
+        'due_date': invoice.payment_due_date.isoformat(),
+        'client_plan': rate.plan,
+        'total_cost': total_cost,
+        'fixed_cost': rate.fixed_cost,
+        'total_incidents': {
+            'web': invoice.total_incidents_web,
+            'mobile': invoice.total_incidents_mobile,
+            'email': invoice.total_incidents_email,
         },
-        "unit_cost_per_incident": {
-            "web": rate.cost_per_incident_web,
-            "mobile": rate.cost_per_incident_mobile,
-            "email": rate.cost_per_incident_email,
+        'unit_cost_per_incident': {
+            'web': rate.cost_per_incident_web,
+            'mobile': rate.cost_per_incident_mobile,
+            'email': rate.cost_per_incident_email,
         },
-        "total_cost_per_incident": {
-            "web": rate.cost_per_incident_web * invoice.total_incidents_web,
-            "mobile": rate.cost_per_incident_mobile * invoice.total_incidents_mobile,
-            "email": rate.cost_per_incident_email * invoice.total_incidents_email,
+        'total_cost_per_incident': {
+            'web': rate.cost_per_incident_web * invoice.total_incidents_web,
+            'mobile': rate.cost_per_incident_mobile * invoice.total_incidents_mobile,
+            'email': rate.cost_per_incident_email * invoice.total_incidents_email,
         },
     }
+
 
 @class_route(blp, '/api/v1/invoice')
 class GetInvoice(MethodView):
@@ -133,7 +151,13 @@ class GetInvoice(MethodView):
         if invoice is not None:
             rate = rate_repo.get_by_id(invoice.rate_id)
         else:
-            invoice = create_invoice(billing_month=billing_month, billing_year=billing_year, client_id=client_id, rate=rate, incident_repo=incident_repo, invoice_repo=invoice_repo)
+            invoice = create_invoice(
+                month_year=(billing_month, billing_year),
+                client_id=client_id,
+                rate=rate,
+                incident_repo=incident_repo,
+                invoice_repo=invoice_repo,
+            )
 
         # 6. Return invoice data
         return json_response(invoice_result_to_dict(invoice, rate, client), 200)
