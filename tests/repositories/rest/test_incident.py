@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from typing import cast
 from unittest.mock import Mock
@@ -42,7 +43,7 @@ class TestIncident(ParametrizedTestCase):
 
         incidents_data = [
             {
-                'id': cast(str, self.faker.uuid4()),
+                'id': str(uuid.uuid4()),
                 'name': 'Internet no funciona',
                 'channel': 'web',
                 'reported_by': cast(str, self.faker.uuid4()),
@@ -74,12 +75,12 @@ class TestIncident(ParametrizedTestCase):
         )
 
         expected_incident = Incident(
-            id=incidents_data[0]['id'],
+            id=incidents_data[0]['id'],  # type: ignore[arg-type]
             name='Internet no funciona',
             channel=Channel.WEB,
-            reported_by=incidents_data[0]['reported_by'],
-            created_by=incidents_data[0]['created_by'],
-            assigned_to=incidents_data[0]['assigned_to'],
+            reported_by=incidents_data[0]['reported_by'],  # type: ignore[arg-type]
+            created_by=incidents_data[0]['created_by'],  # type: ignore[arg-type]
+            assigned_to=incidents_data[0]['assigned_to'],  # type: ignore[arg-type]
             history=[history_entry],
         )
 

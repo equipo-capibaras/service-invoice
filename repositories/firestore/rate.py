@@ -1,5 +1,4 @@
 import logging
-from collections.abc import Generator  # pragma: no cover
 from dataclasses import asdict
 from enum import Enum
 from typing import Any, cast
@@ -52,7 +51,7 @@ class FirestoreRateRepository(RateRepository):
             self.logger.error('Multiple rates found with client_id %s and plan %s', client_id, plan)
             return None
 
-        return self.doc_to_rate(cast(DocumentSnapshot, docs[0]))
+        return self.doc_to_rate(docs[0])
 
     def create(self, rate: Rate) -> None:
         rate_dict = asdict(rate)
@@ -65,8 +64,3 @@ class FirestoreRateRepository(RateRepository):
         del rate_dict['id']
 
         self.db.collection('rates').document(rate.id).set(rate_dict)
-
-    def delete_all(self) -> None:
-        stream: Generator[DocumentSnapshot, None, None] = self.db.collection('rates').stream()
-        for rate in stream:
-            cast(DocumentSnapshot, rate.reference).delete()

@@ -1,20 +1,20 @@
-import contextlib
 import os
+import uuid
 from dataclasses import asdict
-from datetime import datetime
+from datetime import UTC
 from typing import cast
 from unittest import skipUnless
 
 import requests
 from faker import Faker
-from google.api_core.exceptions import AlreadyExists
 from google.cloud.firestore import Client as FirestoreClient  # type: ignore[import-untyped]
-from unittest_parametrize import ParametrizedTestCase, parametrize
+from unittest_parametrize import ParametrizedTestCase
 
 from models import Invoice, Month
 from repositories.firestore import FirestoreInvoiceRepository
 
 FIRESTORE_DATABASE = '(default)'
+
 
 @skipUnless('FIRESTORE_EMULATOR_HOST' in os.environ, 'Firestore emulator not available')
 class TestInvoiceRepository(ParametrizedTestCase):
@@ -36,13 +36,13 @@ class TestInvoiceRepository(ParametrizedTestCase):
         # Add n invoices to Firestore
         for _ in range(n):
             invoice = Invoice(
-                id=cast(str, self.faker.uuid4()),
+                id=str(uuid.uuid4()),
                 client_id=cast(str, self.faker.uuid4()),
                 rate_id=cast(str, self.faker.uuid4()),
                 generation_date=self.faker.date_time_this_year(),
                 billing_month=self.faker.random_element(list(Month)),
                 billing_year=int(self.faker.year()),
-                payment_due_date=datetime.now(),
+                payment_due_date=self.faker.past_datetime(start_date='-30d', tzinfo=UTC),
                 total_incidents_web=self.faker.random_int(min=0, max=100),
                 total_incidents_mobile=self.faker.random_int(min=0, max=100),
                 total_incidents_email=self.faker.random_int(min=0, max=100),
@@ -70,14 +70,14 @@ class TestInvoiceRepository(ParametrizedTestCase):
     def test_get_by_client_and_month(self) -> None:
         invoice = self.add_random_invoices(1)[0]
 
-        invoice_repo = self.repo.get_by_client_and_month(invoice.client_id, invoice.month, invoice.year)
+        invoice_repo = self.repo.get_by_client_and_month(invoice.client_id, invoice.billing_month, invoice.billing_year)
 
         self.assertEqual(invoice_repo, invoice)
 
     def test_get_by_client_and_month_not_found(self) -> None:
-        client_id = cast(str, self.faker.uuid4())
-        month = self.faker.random_element(list(Month))
-        year = self.faker.year()
+        client_id = str(uuid.uuid4())
+        month: Month = self.faker.random_element(list(Month))  # Aquí
+        year = int(self.faker.year())
 
         invoice_repo = self.repo.get_by_client_and_month(client_id, month, year)
 
@@ -85,13 +85,13 @@ class TestInvoiceRepository(ParametrizedTestCase):
 
     def test_create_invoice(self) -> None:
         invoice = Invoice(
-            id=cast(str, self.faker.uuid4()),
+            id=str(uuid.uuid4()),
             client_id=cast(str, self.faker.uuid4()),
             rate_id=cast(str, self.faker.uuid4()),
             generation_date=self.faker.date_time_this_year(),
             billing_month=self.faker.random_element(list(Month)),
             billing_year=int(self.faker.year()),
-            payment_due_date=datetime.now(),
+            payment_due_date=self.faker.past_datetime(start_date='-30d', tzinfo=UTC),
             total_incidents_web=self.faker.random_int(min=0, max=100),
             total_incidents_mobile=self.faker.random_int(min=0, max=100),
             total_incidents_email=self.faker.random_int(min=0, max=100),
@@ -109,9 +109,9 @@ class TestInvoiceRepository(ParametrizedTestCase):
         invoice = self.add_random_invoices(1)[0]
 
         # Update some fields in the invoice
-        invoice.total_web_incidents = self.faker.random_int(min=0, max=100)
-        invoice.total_mobile_incidents = self.faker.random_int(min=0, max=100)
-        invoice.total_email_incidents = self.faker.random_int(min=0, max=100)
+        invoice.total_incidents_web = self.faker.random_int(min=0, max=100)
+        invoice.total_incidents_mobile = self.faker.random_int(min=0, max=100)
+        invoice.total_incidents_email = self.faker.random_int(min=0, max=100)
 
         self.repo.update(invoice)
 
