@@ -17,7 +17,8 @@ blp = Blueprint('Invoice', __name__)
 
 def get_billing_period() -> tuple[Month, int]:
     now = datetime.now(UTC)
-    billing_month = Month(now.month - 1) if now.month > 1 else Month(12)
+    month_number = now.month - 1 if now.month > 1 else 12
+    billing_month = Month.from_int(month_number)
     billing_year = now.year if now.month > 1 else now.year - 1
     return billing_month, billing_year
 
@@ -41,7 +42,7 @@ def create_invoice(
         generation_date=datetime.now(UTC),
         billing_month=month_year[0],
         billing_year=month_year[1],
-        payment_due_date=datetime(month_year[1], month_year[0].value, 27, tzinfo=UTC),
+        payment_due_date=datetime(month_year[1], month_year[0].to_int(), 27, tzinfo=UTC),
         total_incidents_web=total_web,
         total_incidents_mobile=total_mobile,
         total_incidents_email=total_email,
@@ -55,11 +56,11 @@ def create_invoice(
 def get_incidents_by_client_and_month(
     client_id: str, month: Month, year: int, incident_repo: IncidentRepository
 ) -> list[Incident]:
-    incidents = incident_repo.get_incidents_by_client_id(client_id=client_id)
+    incidents = incident_repo.get_incidents_by_client_id(client_id=client_id) or []
     filtered_incidents = []
     for incident in incidents:
         created_date = incident.history[0].date
-        if created_date.month == month and created_date.year == year:
+        if created_date.month == month.to_int() and created_date.year == year:
             filtered_incidents.append(incident)
     return filtered_incidents
 
@@ -159,5 +160,7 @@ class GetInvoice(MethodView):
                 invoice_repo=invoice_repo,
             )
 
+        if rate is None:
+            return error_response("Rate could not be determined", 500)
         # 6. Return invoice data
         return json_response(invoice_result_to_dict(invoice, rate, client), 200)
