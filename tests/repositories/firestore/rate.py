@@ -29,20 +29,23 @@ class TestRateRepository(ParametrizedTestCase):
         self.repo = FirestoreRateRepository(FIRESTORE_DATABASE)
         self.client = FirestoreClient(database=FIRESTORE_DATABASE)
 
+    def get_one_random_rate(self) -> Rate:
+        return Rate(
+            id=cast(str, self.faker.uuid4()),
+            plan=self.faker.random_element(list(Plan)),
+            client_id=cast(str, self.faker.uuid4()),
+            fixed_cost=self.faker.pyfloat(min_value=1.0, max_value=10.0),
+            cost_per_incident_web=self.faker.pyfloat(min_value=0.01, max_value=1.0),
+            cost_per_incident_mobile=self.faker.pyfloat(min_value=0.01, max_value=1.0),
+            cost_per_incident_email=self.faker.pyfloat(min_value=0.01, max_value=1.0),
+        )
+
     def add_random_rates(self, n: int) -> list[Rate]:
         rates: list[Rate] = []
 
         # Add n rates to Firestore
         for _ in range(n):
-            rate = Rate(
-                id=cast(str, self.faker.uuid4()),
-                plan=self.faker.random_element(list(Plan)),
-                client_id=cast(str, self.faker.uuid4()),
-                fixed_cost=self.faker.pyfloat(min_value=1.0, max_value=10.0),
-                cost_per_incident_web=self.faker.pyfloat(min_value=0.01, max_value=1.0),
-                cost_per_incident_mobile=self.faker.pyfloat(min_value=0.01, max_value=1.0),
-                cost_per_incident_email=self.faker.pyfloat(min_value=0.01, max_value=1.0),
-            )
+            rate = self.get_one_random_rate()
 
             rates.append(rate)
             rate_dict = asdict(rate)
@@ -52,15 +55,7 @@ class TestRateRepository(ParametrizedTestCase):
         return rates
 
     def test_create_rate(self) -> None:
-        rate = Rate(
-            id=cast(str, self.faker.uuid4()),
-            plan=self.faker.random_element(list(Plan)),
-            client_id=cast(str, self.faker.uuid4()),
-            fixed_cost=self.faker.pyfloat(min_value=1.0, max_value=10.0),
-            cost_per_incident_web=self.faker.pyfloat(min_value=0.01, max_value=1.0),
-            cost_per_incident_mobile=self.faker.pyfloat(min_value=0.01, max_value=1.0),
-            cost_per_incident_email=self.faker.pyfloat(min_value=0.01, max_value=1.0),
-        )
+        rate = self.get_one_random_rate()
 
         self.repo.create(rate)
 
@@ -102,15 +97,7 @@ class TestRateRepository(ParametrizedTestCase):
         self.assertEqual(doc.to_dict(), rate_dict)
 
     def test_create_duplicate_rate(self) -> None:
-        rate = Rate(
-            id=cast(str, self.faker.uuid4()),
-            plan=self.faker.random_element(list(Plan)),
-            client_id=cast(str, self.faker.uuid4()),
-            fixed_cost=self.faker.pyfloat(min_value=1.0, max_value=10.0),
-            cost_per_incident_web=self.faker.pyfloat(min_value=0.01, max_value=1.0),
-            cost_per_incident_mobile=self.faker.pyfloat(min_value=0.01, max_value=1.0),
-            cost_per_incident_email=self.faker.pyfloat(min_value=0.01, max_value=1.0),
-        )
+        rate = self.get_one_random_rate()
 
         self.repo.create(rate)
 

@@ -30,23 +30,26 @@ class TestInvoiceRepository(ParametrizedTestCase):
         self.repo = FirestoreInvoiceRepository(FIRESTORE_DATABASE)
         self.client = FirestoreClient(database=FIRESTORE_DATABASE)
 
+    def get_one_random_invoice(self) -> Invoice:
+        return Invoice(
+            id=str(uuid.uuid4()),
+            client_id=cast(str, self.faker.uuid4()),
+            rate_id=cast(str, self.faker.uuid4()),
+            generation_date=self.faker.date_time_this_year(),
+            billing_month=self.faker.random_element(list(Month)),
+            billing_year=int(self.faker.year()),
+            payment_due_date=self.faker.past_datetime(start_date='-30d', tzinfo=UTC),
+            total_incidents_web=self.faker.random_int(min=0, max=100),
+            total_incidents_mobile=self.faker.random_int(min=0, max=100),
+            total_incidents_email=self.faker.random_int(min=0, max=100),
+        )
+
     def add_random_invoices(self, n: int) -> list[Invoice]:
         invoices: list[Invoice] = []
 
         # Add n invoices to Firestore
         for _ in range(n):
-            invoice = Invoice(
-                id=str(uuid.uuid4()),
-                client_id=cast(str, self.faker.uuid4()),
-                rate_id=cast(str, self.faker.uuid4()),
-                generation_date=self.faker.date_time_this_year(),
-                billing_month=self.faker.random_element(list(Month)),
-                billing_year=int(self.faker.year()),
-                payment_due_date=self.faker.past_datetime(start_date='-30d', tzinfo=UTC),
-                total_incidents_web=self.faker.random_int(min=0, max=100),
-                total_incidents_mobile=self.faker.random_int(min=0, max=100),
-                total_incidents_email=self.faker.random_int(min=0, max=100),
-            )
+            invoice = self.get_one_random_invoice()
 
             invoices.append(invoice)
             invoice_dict = asdict(invoice)
@@ -84,18 +87,7 @@ class TestInvoiceRepository(ParametrizedTestCase):
         self.assertIsNone(invoice_repo)
 
     def test_create_invoice(self) -> None:
-        invoice = Invoice(
-            id=str(uuid.uuid4()),
-            client_id=cast(str, self.faker.uuid4()),
-            rate_id=cast(str, self.faker.uuid4()),
-            generation_date=self.faker.date_time_this_year(),
-            billing_month=self.faker.random_element(list(Month)),
-            billing_year=int(self.faker.year()),
-            payment_due_date=self.faker.past_datetime(start_date='-30d', tzinfo=UTC),
-            total_incidents_web=self.faker.random_int(min=0, max=100),
-            total_incidents_mobile=self.faker.random_int(min=0, max=100),
-            total_incidents_email=self.faker.random_int(min=0, max=100),
-        )
+        invoice = self.get_one_random_invoice()
 
         self.repo.create(invoice)
 
