@@ -22,7 +22,7 @@ class TestInvoiceRepository(ParametrizedTestCase):
         self.faker = Faker()
 
         requests.delete(
-            f'http://{os.environ["FIRESTORE_EMULATOR_HOST"]}/emulator/v1/projects/google-cloud-firestore-emulator/databases/{FIRESTORE_DATABASE}/documents',
+            f'https://{os.environ["FIRESTORE_EMULATOR_HOST"]}/emulator/v1/projects/google-cloud-firestore-emulator/databases/{FIRESTORE_DATABASE}/documents',
             timeout=5,
         )
 
