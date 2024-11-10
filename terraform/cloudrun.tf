@@ -48,11 +48,6 @@ resource "google_cloud_run_v2_service" "default" {
       }
 
       env {
-        name = "CLIENT_SVC_URL"
-        value = "https://client-${data.google_project.default.number}.${local.region}.run.app"
-      }
-
-      env {
         name = "INCIDENTQUERY_SVC_URL"
         value = "https://incidentquery-${data.google_project.default.number}.${local.region}.run.app"
       }
