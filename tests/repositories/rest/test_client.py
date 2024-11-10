@@ -6,7 +6,7 @@ from faker import Faker
 from requests import HTTPError
 from unittest_parametrize import ParametrizedTestCase, parametrize
 
-from models import Client
+from models import Client, Plan
 from repositories.rest import RestClientRepository, TokenProvider
 
 
@@ -36,19 +36,22 @@ class TestClient(ParametrizedTestCase):
             repo.authenticated_get(self.base_url)
             self.assertEqual(rsps.calls[0].request.headers['Authorization'], f'Bearer {token}')
 
-    def test_get_existing(self) -> None:
+    def test_get_existing_with_plan(self) -> None:
         client = Client(
             id=cast(str, self.faker.uuid4()),
             name=self.faker.company(),
+            plan=Plan.EMPRENDEDOR,
         )
         client_id = cast(str, self.faker.uuid4())
 
         with responses.RequestsMock() as rsps:
+            # Simulando el endpoint con `include_plan=true`
             rsps.get(
-                f'{self.base_url}/api/v1/clients/{client_id}',
+                f'{self.base_url}/api/v1/clients/{client_id}?include_plan=true',
                 json={
                     'id': client.id,
                     'name': client.name,
+                    'plan': client.plan.value,
                 },
             )
 
@@ -60,7 +63,7 @@ class TestClient(ParametrizedTestCase):
         client_id = cast(str, self.faker.uuid4())
 
         with responses.RequestsMock() as rsps:
-            rsps.get(f'{self.base_url}/api/v1/clients/{client_id}', status=404)
+            rsps.get(f'{self.base_url}/api/v1/clients/{client_id}?include_plan=true', status=404)
 
             client_repo = self.repo.get(client_id)
 
@@ -69,15 +72,15 @@ class TestClient(ParametrizedTestCase):
     @parametrize(
         'status',
         [
-            (500,),
-            (201,),
+            (500,),  # Internal Server Error
+            (400,),  # Bad Request
         ],
     )
     def test_get_error(self, status: int) -> None:
         client_id = cast(str, self.faker.uuid4())
 
         with responses.RequestsMock() as rsps:
-            rsps.get(f'{self.base_url}/api/v1/clients/{client_id}', status=status)
+            rsps.get(f'{self.base_url}/api/v1/clients/{client_id}?include_plan=true', status=status)
 
             with self.assertRaises(HTTPError):
                 self.repo.get(client_id)

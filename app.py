@@ -3,7 +3,7 @@ import os
 from flask import Flask
 from gcp_microservice_utils import GcpAuthToken, setup_apigateway, setup_cloud_logging, setup_cloud_trace
 
-from blueprints import BlueprintBackup, BlueprintHealth, BlueprintReset
+from blueprints import BlueprintBackup, BlueprintHealth, BlueprintInvoice, BlueprintReset
 from containers import Container
 
 
@@ -32,6 +32,12 @@ def create_app() -> FlaskMicroservice:
         if 'USE_CLOUD_TOKEN_PROVIDER' in os.environ:
             app.container.config.svc.client.token_provider.from_value(GcpAuthToken(os.environ['CLIENT_SVC_URL']))
 
+    if 'INCIDENTQUERY_SVC_URL' in os.environ:  # pragma: no cover
+        app.container.config.svc.incidentquery.url.from_env('INCIDENTQUERY_SVC_URL')
+
+        if 'USE_CLOUD_TOKEN_PROVIDER' in os.environ:
+            app.container.config.svc.incidentquery.token_provider.from_value(GcpAuthToken(os.environ['INCIDENTQUERY_SVC_URL']))
+
     if os.getenv('ENABLE_CLOUD_TRACE') == '1':  # pragma: no cover
         setup_cloud_trace(app)
 
@@ -40,5 +46,6 @@ def create_app() -> FlaskMicroservice:
     app.register_blueprint(BlueprintBackup)
     app.register_blueprint(BlueprintHealth)
     app.register_blueprint(BlueprintReset)
+    app.register_blueprint(BlueprintInvoice)
 
     return app
