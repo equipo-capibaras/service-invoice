@@ -39,8 +39,8 @@ class FirestoreInvoiceRepository(InvoiceRepository):
         docs = (
             self.db.collection('invoices')
             .where('client_id', '==', client_id)
-            .where('month', '==', month.value)
-            .where('year', '==', year)
+            .where('billing_month', '==', month.value)
+            .where('billing_year', '==', year)
             .get()
         )
 
@@ -62,6 +62,7 @@ class FirestoreInvoiceRepository(InvoiceRepository):
 
     def update(self, invoice: Invoice) -> None:
         invoice_dict = asdict(invoice)
+
         del invoice_dict['id']
 
         self.db.collection('invoices').document(invoice.id).set(invoice_dict)

@@ -1,23 +1,24 @@
-import json
-import responses
 import base64
 import json
-from datetime import datetime, UTC
+from datetime import UTC, datetime
+from typing import Any
 from unittest import TestCase
 from unittest.mock import MagicMock, Mock, patch
+
+import responses
 from faker import Faker
 
-
 from app import create_app
-from models import Month, Client, Rate, Incident, Invoice, Channel, Plan, Role
-from repositories import ClientRepository, IncidentRepository, InvoiceRepository, RateRepository
 from blueprints.invoice import (
-    get_billing_period,
     create_invoice,
-    get_incidents_by_client_and_month,
     create_rate,
+    get_billing_period,
+    get_incidents_by_client_and_month,
     invoice_result_to_dict,
 )
+from models import Channel, Client, Incident, Invoice, Month, Plan, Rate, Role
+from repositories import ClientRepository, IncidentRepository, InvoiceRepository, RateRepository
+
 
 class TestInvoice(TestCase):
     def setUp(self) -> None:
@@ -33,28 +34,25 @@ class TestInvoice(TestCase):
         self.client_id = self.faker.uuid4()
         self.rate = Rate(
             id=str(self.faker.uuid4()),
-            plan="basic",
+            plan=Plan.EMPRENDEDOR,
             client_id=str(self.client_id),
             fixed_cost=100.0,
             cost_per_incident_web=10.0,
             cost_per_incident_mobile=15.0,
             cost_per_incident_email=5.0,
         )
-        self.client = Client(id=str(self.client_id), plan="basic", name="Test Client")
+        self.client = Client(id=str(self.client_id), plan=Plan.EMPRENDEDOR, name='Test Client')
 
-
-    def gen_token_employee(self, *, client_id: str | None, role: Role, assigned: bool) -> dict[str, any]:
+    def gen_token_employee(self, *, client_id: str | None, role: Role, assigned: bool) -> dict[str, Any]:
         return {
             'sub': str(self.faker.uuid4()),
             'cid': client_id,
             'role': role.value,
             'aud': ('' if assigned else 'unassigned_') + role.value,
         }
-    
-    def encode_token(self, token: dict[str, any]) -> str:
-        token_encoded = base64.urlsafe_b64encode(json.dumps(token).encode()).decode()
-        return token_encoded
 
+    def encode_token(self, token: dict[str, Any]) -> str:
+        return base64.urlsafe_b64encode(json.dumps(token).encode()).decode()
 
     def test_get_billing_period(self) -> None:
         billing_month, billing_year = get_billing_period()
@@ -66,7 +64,7 @@ class TestInvoice(TestCase):
         self.assertEqual(billing_year, expected_year)
 
     def test_create_rate(self) -> None:
-        self.client.plan = "EMPRENDEDOR"
+        self.client.plan = Plan.EMPRENDEDOR
         self.rate_repo.create = MagicMock()
 
         rate = create_rate(self.client, self.rate_repo)
@@ -74,7 +72,6 @@ class TestInvoice(TestCase):
         self.assertEqual(rate.client_id, self.client.id)
         self.assertEqual(rate.plan, self.client.plan)
         self.rate_repo.create.assert_called_once_with(rate)
-
 
     def test_get_incidents_by_client_and_month(self) -> None:
         mock_incident = MagicMock(spec=Incident)
@@ -134,8 +131,6 @@ class TestInvoice(TestCase):
         self.assertEqual(invoice.total_incidents_mobile, 1)
         self.invoice_repo.create.assert_called_once_with(invoice)
 
-
-
     def test_invoice_result_to_dict(self) -> None:
         invoice = Invoice(
             id=str(self.faker.uuid4()),
@@ -152,19 +147,15 @@ class TestInvoice(TestCase):
 
         result = invoice_result_to_dict(invoice, self.rate, self.client)
 
-        self.assertEqual(result['billing_month'], "November")
+        self.assertEqual(result['billing_month'], 'November')
         self.assertEqual(result['billing_year'], 2024)
         self.assertEqual(result['client_id'], self.client.id)
         self.assertEqual(result['client_name'], self.client.name)
         self.assertEqual(result['total_cost'], 285.0)
         self.assertEqual(result['total_incidents']['web'], 10)
 
-
-
-
     @responses.activate
     def test_get_invoice_success(self) -> None:
-        # Mockear repositorios
         mock_client_repo = Mock()
         mock_rate_repo = Mock()
         mock_invoice_repo = Mock()
@@ -175,28 +166,19 @@ class TestInvoice(TestCase):
         mock_invoice_repo.get_by_client_and_month.return_value = None
         mock_incidentquery_repo.get_incidents_by_client_id.return_value = []
 
-        token = {
-            'sub': 'uuid-del-usuario',
-            'cid': str(self.client_id),
-            'role': 'admin',
-            'aud': 'admin'
-        }
+        token = {'sub': 'uuid-del-usuario', 'cid': str(self.client_id), 'role': 'admin', 'aud': 'admin'}
         token_encoded = base64.urlsafe_b64encode(json.dumps(token).encode()).decode()
 
-        with self.app.container.client_repo.override(mock_client_repo), \
-            self.app.container.rate_repo.override(mock_rate_repo), \
-            self.app.container.invoice_repo.override(mock_invoice_repo), \
-            self.app.container.incidentquery_repo.override(mock_incidentquery_repo):
+        with (
+            self.app.container.client_repo.override(mock_client_repo),
+            self.app.container.rate_repo.override(mock_rate_repo),
+            self.app.container.invoice_repo.override(mock_invoice_repo),
+            self.app.container.incidentquery_repo.override(mock_incidentquery_repo),
+            self.app.test_client() as client,
+        ):
+            resp = client.get('/api/v1/invoice', headers={'X-Apigateway-Api-Userinfo': token_encoded})
 
-            with self.app.test_client() as client:
-                # Hacer la solicitud con el token codificado en el encabezado X-Apigateway-Api-Userinfo
-                resp = client.get(
-                    '/api/v1/invoice',
-                    headers={'X-Apigateway-Api-Userinfo': token_encoded}
-                )
-
-                self.assertEqual(resp.status_code, 200)
-
+            self.assertEqual(resp.status_code, 200)
 
     @responses.activate
     def test_get_invoice_failure(self) -> None:
@@ -205,14 +187,10 @@ class TestInvoice(TestCase):
         mock_invoice_repo = Mock()
         mock_incidentquery_repo = Mock()
 
-        client = Client(
-            id=str(self.client_id),
-            name="Test Client",
-            plan=Plan.EMPRENDEDOR.value
-        )
+        client = Client(id=str(self.client_id), name='Test Client', plan=Plan.EMPRENDEDOR)
         mock_client_repo.get.return_value = client
 
-        mock_invoice_repo.get_by_client_and_month.side_effect = Exception("Internal Server Error")
+        mock_invoice_repo.get_by_client_and_month.side_effect = Exception('Internal Server Error')
 
         token = {
             'sub': 'uuid-del-usuario',
@@ -222,42 +200,39 @@ class TestInvoice(TestCase):
         }
         token_encoded = base64.urlsafe_b64encode(json.dumps(token).encode()).decode()
 
-        with self.app.container.client_repo.override(mock_client_repo), \
-            self.app.container.rate_repo.override(mock_rate_repo), \
-            self.app.container.invoice_repo.override(mock_invoice_repo), \
-            self.app.container.incidentquery_repo.override(mock_incidentquery_repo):
+        with (
+            self.app.container.client_repo.override(mock_client_repo),
+            self.app.container.rate_repo.override(mock_rate_repo),
+            self.app.container.invoice_repo.override(mock_invoice_repo),
+            self.app.container.incidentquery_repo.override(mock_incidentquery_repo),
+            self.app.test_client() as test_client,
+        ):
+            resp = test_client.get('/api/v1/invoice', headers={'X-Apigateway-Api-Userinfo': token_encoded})
 
-            with self.app.test_client() as client:
-                resp = client.get(
-                    '/api/v1/invoice',
-                    headers={'X-Apigateway-Api-Userinfo': token_encoded}
-                )
+            self.assertEqual(resp.status_code, 500)
+            self.assertIn('Internal Server Error', resp.get_data(as_text=True))
 
-                self.assertEqual(resp.status_code, 500)
-                self.assertIn("Internal Server Error", resp.get_data(as_text=True))
-
-
-    @patch("google.cloud.firestore_v1.client.Client.__init__", return_value=None)
-    @patch("google.cloud.firestore_v1.client.Client.collection")
-    def test_get_invoice_forbidden(self, mock_collection, mock_client_init):
+    @patch('google.cloud.firestore_v1.client.Client.__init__', return_value=None)
+    @patch('google.cloud.firestore_v1.client.Client.collection')
+    def test_get_invoice_forbidden(self, mock_collection: Any, mock_client_init: Any) -> None:  # noqa: ANN401
         mock_client_init.return_value = None
         mock_collection.return_value = MagicMock()
 
-        token = self.gen_token_employee(role=Role.AGENT, client_id="test-client-id", assigned=True)
+        token = self.gen_token_employee(role=Role.AGENT, client_id='test-client-id', assigned=True)
         headers = {'X-Apigateway-Api-Userinfo': self.encode_token(token)}
 
         resp = self.test_client.get('/api/v1/invoice', headers=headers)
 
         self.assertEqual(resp.status_code, 403)
-        self.assertIn("Forbidden", resp.get_json()["message"])
+        self.assertIn('Forbidden', resp.get_json()['message'])
 
-    @patch("google.cloud.firestore_v1.client.Client.__init__", return_value=None)
-    @patch("google.cloud.firestore_v1.client.Client.collection")
-    def test_get_invoice_client_not_found(self, mock_collection, mock_client_init):
+    @patch('google.cloud.firestore_v1.client.Client.__init__', return_value=None)
+    @patch('google.cloud.firestore_v1.client.Client.collection')
+    def test_get_invoice_client_not_found(self, mock_collection: Any, mock_client_init: Any) -> None:  # noqa: ANN401
         mock_client_init.return_value = None
         mock_collection.return_value = MagicMock()
 
-        token = self.gen_token_employee(role=Role.ADMIN, client_id="invalid-client-id", assigned=True)
+        token = self.gen_token_employee(role=Role.ADMIN, client_id='invalid-client-id', assigned=True)
         headers = {'X-Apigateway-Api-Userinfo': self.encode_token(token)}
 
         mock_client_repo = MagicMock()
@@ -267,25 +242,17 @@ class TestInvoice(TestCase):
             resp = self.test_client.get('/api/v1/invoice', headers=headers)
 
         self.assertEqual(resp.status_code, 404)
-        self.assertIn("Client not found", resp.get_json()["message"])
+        self.assertIn('Client not found', resp.get_json()['message'])
 
-    @patch("google.cloud.firestore_v1.client.Client.__init__", return_value=None)
-    @patch("google.cloud.firestore_v1.client.Client.collection")
-    def test_get_invoice_invalid_token(self, mock_collection, mock_client_init):
+    @patch('google.cloud.firestore_v1.client.Client.__init__', return_value=None)
+    @patch('google.cloud.firestore_v1.client.Client.collection')
+    def test_get_invoice_invalid_token(self, mock_collection: Any, mock_client_init: Any) -> None:  # noqa: ANN401
         mock_client_init.return_value = None
         mock_collection.return_value = MagicMock()
 
-        headers = {'X-Apigateway-Api-Userinfo': "invalid-token"}
+        headers = {'X-Apigateway-Api-Userinfo': 'invalid-token'}
 
         resp = self.test_client.get('/api/v1/invoice', headers=headers)
 
         self.assertEqual(resp.status_code, 401)
-        self.assertIn("Token is missing", resp.get_json()["message"])
-
-
-
-
-
-
-
-
+        self.assertIn('Token is missing', resp.get_json()['message'])

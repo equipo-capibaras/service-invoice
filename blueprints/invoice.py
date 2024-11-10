@@ -89,7 +89,7 @@ def invoice_result_to_dict(invoice: Invoice, rate: Rate, client: Client) -> dict
         + (rate.cost_per_incident_email * invoice.total_incidents_email)
     )
     return {
-        'billing_month': invoice.billing_month.value,
+        'billing_month': invoice.billing_month,
         'billing_year': invoice.billing_year,
         'client_id': invoice.client_id,
         'client_name': client.name,
@@ -161,6 +161,6 @@ class GetInvoice(MethodView):
             )
 
         if rate is None:
-            return error_response("Rate could not be determined", 500)
+            return error_response('Rate could not be determined', 500)
         # 6. Return invoice data
         return json_response(invoice_result_to_dict(invoice, rate, client), 200)

@@ -20,10 +20,11 @@ class Month(StrEnum):
         return list(Month).index(self) + 1
 
     @staticmethod
-    def from_int(month_number: int) -> "Month":
+    def from_int(month_number: int) -> 'Month':
         """Devuelve el Enum correspondiente al número de mes."""
-        if not (1 <= month_number <= 12):
-            raise ValueError("El número del mes debe estar entre 1 y 12.")
-        
+        last_month = 12
+        if not (1 <= month_number <= last_month):
+            raise ValueError('El número del mes debe estar entre 1 y 12.')
+
         months = list(Month)
-        return Month(months[month_number - 1])  
+        return Month(months[month_number - 1])
