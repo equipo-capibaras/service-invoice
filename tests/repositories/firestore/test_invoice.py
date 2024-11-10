@@ -22,7 +22,7 @@ class TestInvoiceRepository(ParametrizedTestCase):
         self.faker = Faker()
 
         requests.delete(
-            f'https://{os.environ["FIRESTORE_EMULATOR_HOST"]}/emulator/v1/projects/google-cloud-firestore-emulator/databases/{FIRESTORE_DATABASE}/documents',
+            f'http://{os.environ["FIRESTORE_EMULATOR_HOST"]}/emulator/v1/projects/google-cloud-firestore-emulator/databases/{FIRESTORE_DATABASE}/documents',
             timeout=5,
         )
 
@@ -71,7 +71,7 @@ class TestInvoiceRepository(ParametrizedTestCase):
         return invoice
 
     def normalize_datetime(self, dt: datetime) -> datetime:
-        return dt.replace(tzinfo=UTC) if not hasattr(dt, 'nanosecond') else dt.replace(tzinfo=UTC)
+        return dt.replace(tzinfo=UTC)
 
     def test_doc_to_invoice(self) -> None:
         invoice = self.get_one_random_invoice()
