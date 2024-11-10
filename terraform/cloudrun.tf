@@ -47,6 +47,11 @@ resource "google_cloud_run_v2_service" "default" {
         value = "https://client-${data.google_project.default.number}.${local.region}.run.app"
       }
 
+      env {
+        name = "INCIDENTQUERY_SVC_URL"
+        value = "https://incidentquery-${data.google_project.default.number}.${local.region}.run.app"
+      }
+
       startup_probe {
         http_get {
           path = "/api/v1/health/${local.service_name}"
