@@ -120,7 +120,7 @@ class TestInvoiceRepository(ParametrizedTestCase):
 
     def test_get_by_client_and_month_not_found(self) -> None:
         client_id = str(uuid.uuid4())
-        month: Month = self.faker.random_element(list(Month))
+        month = cast(Month, self.faker.random_element(list(Month)))
         year = int(self.faker.year())
 
         result = self.repo.get_by_client_and_month(client_id, month, year)
