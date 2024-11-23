@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -42,7 +42,7 @@ def create_invoice(
         generation_date=datetime.now(UTC),
         billing_month=month_year[0],
         billing_year=month_year[1],
-        payment_due_date=datetime(month_year[1], month_year[0].to_int(), 27, tzinfo=UTC),
+        payment_due_date=datetime(month_year[1], month_year[0].to_int(), 15, tzinfo=UTC) + timedelta(days=30),
         total_incidents_web=total_web,
         total_incidents_mobile=total_mobile,
         total_incidents_email=total_email,
