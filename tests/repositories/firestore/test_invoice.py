@@ -191,3 +191,13 @@ class TestInvoiceRepository(ParametrizedTestCase):
         result = self.repo.get_by_client_and_month(invoices[0].client_id, Month.NOVEMBER, invoices[0].billing_year)
 
         self.assertIsNone(result)
+
+    def test_delete_all(self) -> None:
+        invoices = self.add_random_invoices(5)
+
+        self.repo.delete_all()
+
+        for invoice in invoices:
+            doc = self.client.collection('invoices').document(invoice.id).get()
+
+            self.assertFalse(doc.exists)

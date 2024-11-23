@@ -71,3 +71,6 @@ class FirestoreInvoiceRepository(InvoiceRepository):
         stream: Generator[DocumentSnapshot, None, None] = self.db.collection('invoices').stream()
         for doc in stream:
             yield self.doc_to_invoice(doc)
+
+    def delete_all(self) -> None:
+        self.db.recursive_delete(self.db.collection('invoices'))
