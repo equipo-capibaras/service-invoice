@@ -1,12 +1,12 @@
 import base64
 import json
 from datetime import UTC, datetime
-from typing import Any
-from unittest import TestCase
+from typing import Any, cast
 from unittest.mock import MagicMock, Mock, patch
 
 import responses
 from faker import Faker
+from unittest_parametrize import ParametrizedTestCase, parametrize
 
 from app import create_app
 from blueprints.invoice import (
@@ -20,7 +20,7 @@ from models import Channel, Client, Incident, Invoice, Month, Plan, Rate, Role
 from repositories import ClientRepository, IncidentRepository, InvoiceRepository, RateRepository
 
 
-class TestInvoice(TestCase):
+class TestInvoice(ParametrizedTestCase):
     def setUp(self) -> None:
         self.faker = Faker()
         self.app = create_app()
@@ -63,15 +63,28 @@ class TestInvoice(TestCase):
         self.assertEqual(billing_month, expected_month)
         self.assertEqual(billing_year, expected_year)
 
-    def test_create_rate(self) -> None:
-        self.client.plan = Plan.EMPRENDEDOR
+    @parametrize(
+        ('plan', 'expect_error'),
+        [
+            (Plan.EMPRENDEDOR, False),
+            (Plan.EMPRESARIO, False),
+            (Plan.EMPRESARIO_PLUS, False),
+            ('unknown', True),
+        ],
+    )
+    def test_create_rate(self, *, plan: str, expect_error: bool) -> None:
+        self.client.plan = cast(Plan, plan)
         self.rate_repo.create = MagicMock()
 
-        rate = create_rate(self.client, self.rate_repo)
+        if expect_error:
+            with self.assertRaises(ValueError):
+                create_rate(self.client, self.rate_repo)
+        else:
+            rate = create_rate(self.client, self.rate_repo)
 
-        self.assertEqual(rate.client_id, self.client.id)
-        self.assertEqual(rate.plan, self.client.plan)
-        self.rate_repo.create.assert_called_once_with(rate)
+            self.assertEqual(rate.client_id, self.client.id)
+            self.assertEqual(rate.plan, self.client.plan)
+            self.rate_repo.create.assert_called_once_with(rate)
 
     def test_get_incidents_by_client_and_month(self) -> None:
         mock_incident = MagicMock(spec=Incident)
