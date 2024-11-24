@@ -18,3 +18,6 @@ class InvoiceRepository:
 
     def get_all(self) -> Generator[Invoice, None, None]:
         raise NotImplementedError  # pragma: no cover
+
+    def delete_all(self) -> None:
+        raise NotImplementedError  # pragma: no cover
